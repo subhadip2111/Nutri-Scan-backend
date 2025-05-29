@@ -7,10 +7,13 @@ import { createWorker, PSM } from 'tesseract.js';
 import { Express } from 'express';
 import * as fs from 'fs/promises'; // Use fs.promises for async operations
 import { GeminiService } from './gemini.service';
+import { GooglePuppeteerService } from './puppeteer.service';
 
 @Controller()
 export class AppController {
-  constructor(private readonly geminiService: GeminiService) {} 
+  constructor(private readonly geminiService: GeminiService,
+    private readonly pupetterService: GooglePuppeteerService, 
+  ) {} 
 
   @Post('upload')
   @UseInterceptors(
@@ -38,32 +41,41 @@ export class AppController {
     }
 
     const originalFilePath = file.path;
-    // Define a path for the preprocessed image in the same 'uploads' directory
     const preprocessedPath = join(file.destination, `preprocessed-${file.filename}`);
 
     try {
-      // Step 1: Preprocess the uploaded image for better OCR accuracy
       await this.preprocessImage(originalFilePath, preprocessedPath);
 
-      // Step 2: Extract text using Tesseract.js from the preprocessed image
       const extractedText = await this.extractText(preprocessedPath);
-
-      // Step 3: Delete temporary files after extraction
-      await fs.unlink(originalFilePath); // Delete the original uploaded file
-      await fs.unlink(preprocessedPath); // Delete the preprocessed file
-
-      // Step 4: Send the extracted text to your GeminiService for analysis
+      await fs.unlink(originalFilePath);
+      await fs.unlink(preprocessedPath); 
       const geminiResponse = await this.geminiService.analyzePreservatives(extractedText);
-console.log(`Gemini response: ${geminiResponse}`);
+      const parsedResponse = typeof geminiResponse === 'string' ? JSON.parse(geminiResponse) : geminiResponse;
+      console.log('Parsed Gemini response:', parsedResponse);
+      const docs = [];
+
+      for (const additive of parsedResponse.preservativesAdditives) {
+        // Use the 'name' field as query string
+        const results = await this.pupetterService.searchAndScrape(additive.name);
+        
+        docs.push({
+          additive: additive.name,
+          description: additive.description,
+          results,
+        });
+      }
+      
+    console.log('docs', docs);
+     console.log('Google search results:', docs);
       return {
         statusCode: HttpStatus.OK,
         message: 'Text extracted and processed successfully',
-        extractedText, // Optionally return extracted text for debugging/info
-         geminiResponse, // The analysis result from Gemini
+        extractedText, 
+         geminiResponse,
+        docs,
       };
     } catch (err) {
       console.error('Error during file upload and processing:', err);
-      // Ensure temporary files are cleaned up even on error
       await this.safeDelete([originalFilePath, preprocessedPath]);
       throw new InternalServerErrorException('Error processing image: ' + err.message);
     }
@@ -74,21 +86,20 @@ console.log(`Gemini response: ${geminiResponse}`);
     try {
       const metadata = await sharp(inputPath).metadata();
       let image = sharp(inputPath)
-        .grayscale() // Convert to grayscale
-        .normalize() // Normalize histogram
-        .sharpen() // Sharpen the image
-        .modulate({ brightness: 1.2 }) // Increase brightness slightly
-        .linear(1.2, 0) // Increase contrast
-        .threshold(150) // Apply adaptive thresholding (adjust value if needed)
-        .median(1); // Apply median filter to remove noise
+        .grayscale() 
+        .normalize() 
+        .sharpen() 
+        .modulate({ brightness: 1.2 }) 
+        .linear(1.2, 0) 
+        .threshold(150) 
+        .median(1); 
 
-      // If image is very small, resize it to improve OCR
       if (metadata.width && metadata.width < 600) {
         image = image.resize({
-          width: metadata.width * 2, // Double the width
-          height: metadata.height ? metadata.height * 2 : undefined, // Double height if available
+          width: metadata.width * 2, 
+          height: metadata.height ? metadata.height * 2 : undefined, 
           fit: 'inside',
-          kernel: sharp.kernel.lanczos3, // High-quality interpolation
+          kernel: sharp.kernel.lanczos3, 
         });
       }
 
@@ -104,9 +115,9 @@ console.log(`Gemini response: ${geminiResponse}`);
   private async extractText(imagePath: string): Promise<string> {
     const tessdataPath = join(process.cwd(), 'tessdata');
 
-    const worker = await createWorker('eng', 1, { // 'eng' for English, '1' for logging level (0 for no logs)
-      langPath: tessdataPath, // Crucial: Tell Tesseract where to find the .traineddata files
-      logger: m => console.log(m) // Optional: Log Tesseract.js progress
+    const worker = await createWorker('eng', 1, { 
+      langPath: tessdataPath, 
+      logger: m => console.log(m) 
     });
 
     await worker.setParameters({
