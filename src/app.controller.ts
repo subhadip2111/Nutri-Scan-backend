@@ -1,11 +1,11 @@
 import { Controller, Post, UploadedFile, UseInterceptors, HttpStatus, InternalServerErrorException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname, join } from 'path'; // Make sure 'join' is imported
+import { extname, join } from 'path'; 
 import * as sharp from 'sharp';
 import { createWorker, PSM } from 'tesseract.js';
 import { Express } from 'express';
-import * as fs from 'fs/promises'; // Use fs.promises for async operations
+import * as fs from 'fs/promises'; 
 import { GeminiService } from './gemini.service';
 import { GooglePuppeteerService } from './puppeteer.service';
 
@@ -19,15 +19,14 @@ export class AppController {
   @UseInterceptors(
     FileInterceptor('image', {
       storage: diskStorage({
-        destination: './uploads', // Ensure this directory exists or is created
+        destination: './uploads',
         filename: (req, file, cb) => {
           const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
           cb(null, `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`);
         },
       }),
-      limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB file size limit
+      limits: { fileSize: 10 * 1024 * 1024 }, 
       fileFilter: (req, file, cb) => {
-        // Allow common image file types
         if (!file.originalname.match(/\.(jpg|jpeg|png|gif|tiff|bmp|webp)$/i)) {
           return cb(new Error('Only image files are allowed!'), false);
         }
@@ -45,7 +44,6 @@ export class AppController {
 
     try {
       await this.preprocessImage(originalFilePath, preprocessedPath);
-
       const extractedText = await this.extractText(preprocessedPath);
       await fs.unlink(originalFilePath);
       await fs.unlink(preprocessedPath); 
@@ -55,7 +53,6 @@ export class AppController {
       const docs = [];
 
       for (const additive of parsedResponse.preservativesAdditives) {
-        // Use the 'name' field as query string
         const results = await this.pupetterService.searchAndScrape(additive.name);
         
         docs.push({
@@ -65,8 +62,6 @@ export class AppController {
         });
       }
       
-    console.log('docs', docs);
-     console.log('Google search results:', docs);
       return {
         statusCode: HttpStatus.OK,
         message: 'Text extracted and processed successfully',

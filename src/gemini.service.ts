@@ -85,9 +85,7 @@ export class GeminiService {
   private parseGeminiResponseToJson(geminiResponse: string) {
     const jsonOutput: any = {};
   
-    // Helper function to extract lines for a specific section
     const extractSectionLines = (sectionName: string): string[] => {
-      // This regex looks for the section header and captures everything until the next section header or end of string
       const regex = new RegExp(`- \\*\\*${sectionName}\\*\\*:(.*?)(?=- \\*\\*|$)`, 's');
       const match = geminiResponse.match(regex);
       if (match && match[1]) {
@@ -96,13 +94,11 @@ export class GeminiService {
       return [];
     };
   
-    // 1. Parse Food Type
     const foodTypeMatch = geminiResponse.match(/- \*\*Food Type\*\*:\s*(.*)/);
     if (foodTypeMatch && foodTypeMatch[1]) {
       jsonOutput.foodType = foodTypeMatch[1].trim();
     }
   
-    // 2. Parse Preservatives/Additives
     const preservativesLines = extractSectionLines('Preservatives/Additives');
     if (preservativesLines.length > 0 && preservativesLines[0] !== 'N/A') {
       jsonOutput.preservativesAdditives = preservativesLines.map(line => {
@@ -116,11 +112,9 @@ export class GeminiService {
       jsonOutput.preservativesAdditives = 'N/A';
     }
   
-    // 3. Parse Element Weight Analysis
     const elementWeightLines = extractSectionLines('Element Weight Analysis');
     if (elementWeightLines.length > 0 && elementWeightLines[0] !== 'N/A') {
       jsonOutput.elementWeightAnalysis = elementWeightLines.map(line => {
-        // Regex to capture element, quantity, daily, weekly, and insight
         const parts = line.match(/^- (.+?):\s*([^,]+?)\s*-\s*Daily:\s*([^,]+?)\s*-\s*Weekly:\s*([^,]+?)\s*-\s*(.+)$/);
         if (parts) {
           return {
@@ -131,7 +125,6 @@ export class GeminiService {
             insight: parts[5].trim(),
           };
         } else {
-          // Special handling for "N/A" cases like Caffeine, where quantity is unknown
           const naMatch = line.match(/^- (.+?):\s*N\/A\s*\((.+?)\)\s*-\s*Daily:\s*N\/A\s*-\s*Weekly:\s*N\/A\s*-\s*(.+)$/);
           if (naMatch) {
               return {
@@ -149,21 +142,17 @@ export class GeminiService {
       jsonOutput.elementWeightAnalysis = 'N/A';
     }
   
-    // 4. Parse Safe User Level
     const safeUserLevelLines = extractSectionLines('Safe User Level');
     if (safeUserLevelLines.length > 0) {
-      // Join lines and remove the "N/A (if unable to determine from text)" note if present
       jsonOutput.safeUserLevel = safeUserLevelLines.join(' ').replace(/\s*-\s*N\/A\s*\(if unable to determine from text\)/, '').trim();
     } else {
-      jsonOutput.safeUserLevel = 'N/A'; // If the section itself isn't found
+      jsonOutput.safeUserLevel = 'N/A'; 
     }
   
   
-    // 5. Parse Potential Human Body Effects
     const effectsLines = extractSectionLines('Potential Human Body Effects (Regular Consumption)');
     if (effectsLines.length > 0 && effectsLines[0] !== 'N/A') {
       jsonOutput.potentialHumanBodyEffects = effectsLines.map(line =>
-        // Remove prefixes like "- Positive Effect 1:"
         line.replace(/^- (Positive|Negative) Effect \d+:\s*/, '').trim()
       );
     } else {

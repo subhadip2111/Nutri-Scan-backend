@@ -13,15 +13,12 @@ interface SearchResult {
 @Injectable()
 export class GooglePuppeteerService {
   private readonly logger = new Logger(GooglePuppeteerService.name);
-
-  // Load from environment variables, fallback to empty strings if missing
   private readonly googleApiKey: string = process.env.GOOGLE_API_KEY || '';
   private readonly googleCseId: string = process.env.GOOGLE_CSE_ID || '';
 
   constructor(private readonly httpService: HttpService) {}
 
   private async googleSearch(query: string, numResults = 5): Promise<SearchResult[]> {
-    this.logger.log(`Performing Google search for query: "${query}"`);
 
     if (!this.googleApiKey || !this.googleCseId) {
       this.logger.error('Google API key or CSE ID is missing. Please set GOOGLE_API_KEY and GOOGLE_CSE_ID environment variables.');
@@ -53,11 +50,6 @@ export class GooglePuppeteerService {
     }
   }
 
-  /**
-   * Scrape text content from a URL.
-   * If selector is provided, extract text from that element.
-   * Otherwise, extract full page body text.
-   */
   private async scrapePageContent(url: string, selector?: string): Promise<string | null> {
     let browser;
     try {
@@ -82,12 +74,7 @@ export class GooglePuppeteerService {
     }
   }
 
-  /**
-   * Search Google and scrape content from each result URL.
-   * @param query Search query string
-   * @param selector Optional CSS selector to extract specific content from the page
-   * @param maxResults Number of search results to process (default 5)
-   */
+
   async searchAndScrape(query: string, selector?: string, maxResults = 5): Promise<SearchResult[]> {
     this.logger.log(`Starting search and scrape for query: "${query}"`);
 
@@ -106,12 +93,7 @@ export class GooglePuppeteerService {
     return resultsWithContent;
   }
 
-  /**
-   * Helper method to search multiple queries sequentially.
-   * @param queries Array of query strings
-   * @param selector Optional CSS selector
-   * @param maxResults Number of results per query
-   */
+
   async searchMultipleAndScrape(
     queries: string[],
     selector?: string,
