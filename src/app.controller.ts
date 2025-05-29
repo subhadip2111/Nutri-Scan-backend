@@ -8,12 +8,19 @@ import { Express } from 'express';
 import * as fs from 'fs/promises'; 
 import { GeminiService } from './gemini.service';
 import { GooglePuppeteerService } from './puppeteer.service';
-
+import { ApiBody, ApiConsumes, ApiOkResponse, ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import { BeverageDto } from './response.dto';
+@ApiTags('Image Upload')
 @Controller()
 export class AppController {
   constructor(private readonly geminiService: GeminiService,
     private readonly pupetterService: GooglePuppeteerService, 
   ) {} 
+  @ApiSecurity('x-api-key')
+  @ApiOperation({ summary: 'Upload Image' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiOkResponse({ type: BeverageDto })
 
   @Post('upload')
   @UseInterceptors(
@@ -34,14 +41,13 @@ export class AppController {
       },
     }),
   )
+  
   async uploadFile(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
       return { statusCode: HttpStatus.BAD_REQUEST, message: 'No file uploaded!' };
     }
-
     const originalFilePath = file.path;
     const preprocessedPath = join(file.destination, `preprocessed-${file.filename}`);
-
     try {
       await this.preprocessImage(originalFilePath, preprocessedPath);
       const extractedText = await this.extractText(preprocessedPath);
