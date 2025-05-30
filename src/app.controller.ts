@@ -10,11 +10,13 @@ import { GeminiService } from './gemini.service';
 import { GooglePuppeteerService } from './puppeteer.service';
 import { ApiBody, ApiConsumes, ApiOkResponse, ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { BeverageDto } from './response.dto';
+import { FoodService } from './food/food.service';
 @ApiTags('Image Upload')
 @Controller()
 export class AppController {
   constructor(private readonly geminiService: GeminiService,
     private readonly pupetterService: GooglePuppeteerService, 
+    private readonly foodService:FoodService
   ) {} 
   @ApiSecurity('x-api-key')
   @ApiOperation({ summary: 'Upload Image' })
@@ -67,7 +69,7 @@ export class AppController {
           results,
         });
       }
-      
+      await this.foodService.create(extractedText,geminiResponse,docs);
       return {
         statusCode: HttpStatus.OK,
         message: 'Text extracted and processed successfully',
